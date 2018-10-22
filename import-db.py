@@ -3,6 +3,7 @@
 import sqlite3, sys
 from enum import Enum
 from pathlib import PurePath
+from halo import Halo
 
 class DBType(Enum):
     integer = 1
@@ -161,6 +162,26 @@ def read_rating(file_name, cursor):
                        line_dict)
     map_lines(file_name, insert)
 
+jobs = [("title.basics.tsv", read_title),
+        ("name.basics.tsv", read_person),
+        ("title.crew.tsv", read_crew),
+        ("title.episode.tsv", read_episode),
+        ("title.akas.tsv", read_title),
+        ("title.principals.tsv", read_principals),
+        ("title.ratings.tsv", read_rating)]
+
+def run_jobs(jobs, connection):
+    num_jobs = str(len(jobs))
+    for count, (filename, read_func) in enumerate(jobs):
+        printstr = "  (" + str(count+1) + "/" + num_jobs + ") Loading file from " + filename
+        with Halo(text=printstr, color='green', spinner='line'):
+            # use one transaction for each file so that if there is an error, its
+            # easier to just re-import the whole file:
+            cursor = conn.cursor()
+            read_func(import_file_path / filename, cursor)
+            connection.commit()
+        print("Data loaded from", filename)
+
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Error: please specify the data directory and the path to the db file.")
@@ -168,23 +189,8 @@ if __name__ == "__main__":
         exit()
 
     import_file_path = PurePath(sys.argv[1])
-    db_file_path = PurePath(sys.argv[2])
+    db_file = PurePath(sys.argv[2])
 
-    conn = sqlite3.connect('imbd.db')
-    cursor = conn.cursor()
+    conn = sqlite3.connect(str(db_file))
 
-    print("Loading data from title.basics.tsv")
-    read_title(import_file_path / "title.basics.tsv", cursor)
-    print("Loading data from name.basics.tsv")
-    read_person(import_file_path / "name.basics.tsv", cursor)
-    print("Loading data from title.crew.tsv")
-    read_crew(import_file_path / "title.crew.tsv", cursor)
-    print("Loading data from title.episode.tsv")
-    read_episode(import_file_path / "title.episode.tsv", cursor)
-    print("Loading data from title.akas.tsv")
-    read_akas(import_file_path / "title.akas.tsv", cursor)
-    print("Loading data from title.principals.tsv")
-    read_principals(import_file_path / "title.principals.tsv", cursor)
-    print("Loading data from title.ratings.tsv")
-    read_rating(import_file_path / "title.principals.tsv", cusor)
-    conn.commit()
+    run_jobs(jobs, conn)
