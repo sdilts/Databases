@@ -14,9 +14,12 @@ class DBType(Enum):
     enumeration = 4
     # a imbd key
     key = 5
-    # a comma seperated list
+    # a comma separated list
     values = 6
     real = 7
+    # a python list: the easiest (but not recommended)
+    # way to import this is to 'eval the raw string.
+    python_list = 8
 
 # Convert the read-in string to the appropriate type
 def convert_string(string, strtype):
@@ -37,6 +40,8 @@ def convert_string(string, strtype):
         return string.split(',')
     elif strtype == DBType.real:
         return float(string)
+    elif strtype == DBType.python_list:
+        return eval(string)
     else:
         raise ValueError("Unknown DBType")
 
@@ -86,16 +91,16 @@ type_dict['isOriginalTitle'] = DBType.boolean
 # new from title.principals.tsv
 type_dict['category'] = DBType.text
 type_dict['job'] = DBType.text
-type_dict['characters'] = DBType.text
+type_dict['characters'] = DBType.python_list
 # new from title.ratings.tsv:
 type_dict['averageRating'] = DBType.real
 type_dict['numVotes'] = DBType.integer
 
 # make a function that deciphers a row of a file:
-def define_column_reader(header,type_dict):
+def define_column_reader(header,type_dict,sep='\t'):
     def read_func(line):
         line_dict = dict()
-        values = line.strip().split('\t')
+        values = line.strip().split(sep)
         assert(len(values) == len(header))
         for colname,value in zip(header, values):
             line_dict[colname] = convert_string(value,type_dict[colname])
@@ -106,11 +111,10 @@ def define_column_reader(header,type_dict):
 # call insert_func on every line in the file that holds data.
 # insert_func takes a single argument: a dictionary that maps the column name to
 # its value
-def map_lines(file_name, insert_func):
+def map_lines(file_name, insert_func, sep='\t'):
     with open(file_name, 'r') as f:
-        header = f.readline().strip().split('\t')
-        row_reader = define_column_reader(header, type_dict)
-        counter = 0
+        header = f.readline().strip().split(sep)
+        row_reader = define_column_reader(header, type_dict,sep=sep)
         for line in f:
             line_dict = row_reader(line)
             insert_func(line_dict)
@@ -164,7 +168,13 @@ def read_akas(file_name, cursor):
 
 def read_principals(file_name, cursor):
     def insert(line_dict):
-        cursor.execute("INSERT INTO PrincipalIn VALUES (:tconst, :nconst, :ordering, :category, :job, :characters)",
+        if line_dict['characters'] != None:
+            titleID = line_dict['tconst']
+            nameID = line_dict['nconst']
+            for character in line_dict['characters']:
+                cursor.execute("INSERT INTO PlayedCharacter (TitleID, PersonID, CharacterName) VALUES (?, ?, ?)",
+                                (titleID, nameID, character))
+        cursor.execute("INSERT INTO PrincipalIn VALUES (:tconst, :nconst, :ordering, :category, :job)",
                        line_dict)
     map_lines(file_name, insert)
 
@@ -192,17 +202,24 @@ jobs = [("title.basics.tsv", read_title),
         ("title.ratings.tsv", read_rating)]
 
 # run all of the listed jobs, with some pretty printing. See the jobs array
-# for a more in-depth explination
+# for a more in-depth explanation
 def run_jobs(jobs, connection):
-    num_jobs = str(len(jobs))
+    num_jobs = len(jobs)
     for count, (filename, read_func) in enumerate(jobs):
-        printstr = "  (" + str(count+1) + "/" + num_jobs + ") Loading file from " + filename
-        with Halo(text=printstr, color='green', spinner='line'):
-            # use one transaction for each file so that if there is an error, its
-            # easier to just re-import the whole file:
-            cursor = conn.cursor()
-            read_func(import_file_path / filename, cursor)
+        printstr = "  (%d/%d) Loading data from %s" % (count+1, num_jobs, filename)
+        # with Halo(text=printstr, color='green', spinner='line'):
+        # use one transaction for each file so that if there is an error, it's
+        # easier to just re-import the whole file. Note that this prevents
+        # us from using the database while a file is being imported.
+        print(printstr)
+        cursor = conn.cursor()
+        filename = import_file_path / filename
+        try:
+            read_func(filename, cursor)
             connection.commit()
+        except FileNotFoundError:
+            print("File %s not found" % filename)
+            exit()
         print("Data loaded from", filename)
 
 if __name__ == "__main__":
