@@ -5,15 +5,20 @@ from enum import Enum
 from pathlib import PurePath
 from halo import Halo
 
+# The different datatypes found in the tsv files
 class DBType(Enum):
     integer = 1
     text = 2
     boolean = 3
+    # for now, same as text
     enumeration = 4
+    # a imbd key
     key = 5
+    # a comma seperated list
     values = 6
     real = 7
 
+# Convert the read-in string to the appropriate type
 def convert_string(string, strtype):
     if string == '\\N':
         return None
@@ -35,23 +40,15 @@ def convert_string(string, strtype):
     else:
         raise ValueError("Unknown DBType")
 
+# Use this to destruct a list into a column: i.e. [1, 2] into (num1, num2, num3)
 def get_index(arr, index):
     if len(arr) > index+1:
         return arr[index]
     else:
         return None
 
-def define_column_reader(header,type_dict):
-    def read_func(line):
-        line_dict = dict()
-        values = line.strip().split('\t')
-        assert(len(values) == len(header))
-        for colname,value in zip(header, values):
-            line_dict[colname] = convert_string(value,type_dict[colname])
-        return line_dict
-
-    return read_func
-
+# Map the column names in the tsv files to their type
+# Allows the program to automatically detect what is stored in each column
 type_dict = dict()
 # title table:
 type_dict['tconst'] = DBType.key
@@ -63,7 +60,7 @@ type_dict['startYear'] =  DBType.text
 type_dict['endYear'] =  DBType.text
 type_dict['runtimeMinutes'] =  DBType.integer
 type_dict['genres'] =  DBType.values
-# person table:
+# new from person table:
 type_dict['nconst'] = DBType.key
 type_dict['primaryName'] = DBType.text
 type_dict['birthYear'] = DBType.text
@@ -94,6 +91,21 @@ type_dict['characters'] = DBType.text
 type_dict['averageRating'] = DBType.real
 type_dict['numVotes'] = DBType.integer
 
+# make a function that deciphers a row of a file:
+def define_column_reader(header,type_dict):
+    def read_func(line):
+        line_dict = dict()
+        values = line.strip().split('\t')
+        assert(len(values) == len(header))
+        for colname,value in zip(header, values):
+            line_dict[colname] = convert_string(value,type_dict[colname])
+        return line_dict
+
+    return read_func
+
+# call insert_func on every line in the file that holds data.
+# insert_func takes a single argument: a dictionary that maps the column name to
+# its value
 def map_lines(file_name, insert_func):
     with open(file_name, 'r') as f:
         header = f.readline().strip().split('\t')
@@ -157,11 +169,20 @@ def read_principals(file_name, cursor):
     map_lines(file_name, insert)
 
 def read_rating(file_name, cursor):
+    # define a function that inserts a single row into the database:
     def insert(line_dict):
         cursor.execute("INSERT INTO Rating (TitleID, AverageRating, VoteCount) VALUES (:tconst, :averageRating, :numVotes)",
                        line_dict)
+    # call the insert function on every data row in the given file
     map_lines(file_name, insert)
 
+# A job is defined with a filename and a function
+# the function is expected to take a filename and a sql cursor
+# object. To import data from a new file, place the file in the
+# data directory, and define a function to insert the contents of the file into the database.
+# ensure that the first line of the file has a header naming each column, and an entry
+# in type_dict mapping the column name to a type. Note that this only works for tsv files.
+# Once the function and file exits, place (filename, insertion_function) into this list
 jobs = [("title.basics.tsv", read_title),
         ("name.basics.tsv", read_person),
         ("title.crew.tsv", read_crew),
@@ -170,6 +191,8 @@ jobs = [("title.basics.tsv", read_title),
         ("title.principals.tsv", read_principals),
         ("title.ratings.tsv", read_rating)]
 
+# run all of the listed jobs, with some pretty printing. See the jobs array
+# for a more in-depth explination
 def run_jobs(jobs, connection):
     num_jobs = str(len(jobs))
     for count, (filename, read_func) in enumerate(jobs):
