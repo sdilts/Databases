@@ -4,17 +4,29 @@
 --        Seq INTEGER
 -- );
 
-CREATE TABLE MediaType (
-       Id CHAR(1) PRIMARY KEY NOT NULL,
-       TypeName TEXT,
-       Seq INTEGER
-);
+-- CREATE TABLE MediaType (
+--        Id CHAR(1) PRIMARY KEY NOT NULL,
+--        TypeName TEXT,
+--        Seq INTEGER
+-- );
 
 -- CREATE TABLE ProfessionType (
 --        Id CHAR(1) PRIMARY KEY NOT NULL,
 --        TypeName TEXT,
 --        Seq INTEGER
 --);
+
+DROP TABLE IF EXISTS TitleGenre;
+DROP TABLE IF EXISTS Title;
+DROP TABLE IF EXISTS EpisodeOf;
+DROP TABLE IF EXISTS Rating;
+DROP TABLE IF EXISTS RegionInfo;
+DROP TABLE IF EXISTS Person;
+DROP TABLE IF EXISTS Wrote;
+DROP TABLE IF EXISTS Directed;
+DROP TABLE IF EXISTS PlayedCharacter;
+DROP TABLE IF EXISTS PrincipalIn;
+DROP TABLE IF EXISTS KnownFor;
 
 CREATE TABLE TitleGenre (
        TitleID NOT NULL REFERENCES Title(TitleID),
@@ -23,13 +35,13 @@ CREATE TABLE TitleGenre (
 );
 
 CREATE TABLE Title (
-       TitleID PRIMARY KEY NOT NULL,
+       TitleID  PRIMARY KEY NOT NULL,
        RunTime INTEGER,
        OriginalTitle TEXT,
        StartYear TEXT,
        EndYear TEXT,
        Description TEXT,
-       MediaType NOT NULL REFERENCES MediaType(MediaType)
+       MediaType NOT NULL -- REFERENCES MediaType(MediaType)
 );
 
 CREATE TABLE EpisodeOf (
@@ -86,21 +98,26 @@ CREATE TABLE Directed (
        PRIMARY KEY(TitleID, PersonID)
 );
 
+CREATE TABLE PlayedCharacter (
+       TitleID INTEGER REFERENCES Title(TitleID),
+       PersonID INTEGER REFERENCES Person(PersonID),
+       CharacterName TEXT
+);
+
 CREATE TABLE PrincipalIn (
        TitleID INTEGER REFERENCES Title(TitleID),
        PersonID INTEGER REFERENCES Person(PersonID),
        Ordering INTEGER,
        JobType TEXT,
        JobTitle TEXT,
-       CharacterName TEXT,
        PRIMARY KEY(TitleID, PersonID, Ordering)
 );
 
-INSERT INTO MediaType VALUES ('a', 'alternative', 1);
-INSERT INTO MediaType VALUES ('d', 'dvd', 2);
-INSERT INTO MediaType VALUES ('f', 'festival', 3);
-INSERT INTO MediaType VALUES ('t', 'tv', 4);
-INSERT INTO MediaType VALUES ('v', 'video', 5);
-INSERT INTO MediaType VALUES ('w', 'working',6);
-INSERT INTO MediaType VALUES ('o', 'original', 7);
-INSERT INTO MediaType VALUES ('i', 'imbdDisplay',8);
+-- INSERT INTO MediaType VALUES ('a', 'alternative', 1);
+-- INSERT INTO MediaType VALUES ('d', 'dvd', 2);
+-- INSERT INTO MediaType VALUES ('f', 'festival', 3);
+-- INSERT INTO MediaType VALUES ('t', 'tv', 4);
+-- INSERT INTO MediaType VALUES ('v', 'video', 5);
+-- INSERT INTO MediaType VALUES ('w', 'working',6);
+-- INSERT INTO MediaType VALUES ('o', 'original', 7);
+-- INSERT INTO MediaType VALUES ('i', 'imbdDisplay',8);
