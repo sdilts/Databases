@@ -3,7 +3,7 @@ files=("name.basics.tsv.gz" "title.akas.tsv.gz" "title.basics.tsv.gz" "title.cre
 	"title.episode.tsv.gz" "title.principals.tsv.gz" "title.ratings.tsv.gz")
 
 mkdir $1
-cd data
+cd $1
 
 for file in "${files[@]}"
 do
