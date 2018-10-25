@@ -100,6 +100,8 @@ def add_info(columns, cursor):
                    columns)
 
 
+jobs = [("IMDB-Movie-Data.csv", insert_line)]
+
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Error: please specify the data directory and the path to the db file.")
@@ -122,4 +124,5 @@ if __name__ == "__main__":
         #     update_info(title_info,columns, cursor)
         conn.commit()
 
-    map_lines(import_file_path / "IMDB-Movie-Data.csv", insert_line)
+    for filename, func in jobs:
+        map_lines(import_file_path / filename, func)
