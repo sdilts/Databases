@@ -192,7 +192,7 @@ def read_rating(file_name, cursor):
 # data directory, and define a function to insert the contents of the file into the database.
 # ensure that the first line of the file has a header naming each column, and an entry
 # in type_dict mapping the column name to a type. Note that this only works for tsv files.
-# Once the function and file exits, place (filename, insertion_function) into this list
+# Once the function and file exists, place (filename, insertion_function) into this list.
 jobs = [("title.basics.tsv", read_title),
         ("name.basics.tsv", read_person),
         ("title.crew.tsv", read_crew),
